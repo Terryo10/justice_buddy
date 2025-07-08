@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             CategorySeeder::class,
             LawInfoItemSeeder::class,
+            LawyerSeeder::class,
         ]);
     }
 }
