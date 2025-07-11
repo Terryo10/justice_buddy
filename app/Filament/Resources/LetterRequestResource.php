@@ -220,7 +220,7 @@ class LetterRequestResource extends Resource
                 Tables\Actions\Action::make('download')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('success')
-                    ->url(fn (LetterRequest $record) => route('letter-requests.download', ['requestId' => $record->request_id]))
+                    ->url(fn (LetterRequest $record) => route('letter-requests.download', $record))
                     ->openUrlInNewTab()
                     ->visible(fn (LetterRequest $record) => $record->status === 'completed' && !empty($record->document_path)),
                 
