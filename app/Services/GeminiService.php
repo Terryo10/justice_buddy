@@ -198,4 +198,97 @@ class GeminiService
             return null;
         }
     }
+
+    /**
+     * Generate chat response using Gemini AI
+     */
+    public function generateChatResponse(array $conversation): string
+    {
+        try {
+            // Convert conversation to Gemini format
+            $contents = [];
+            
+            foreach ($conversation as $message) {
+                if ($message['role'] === 'system') {
+                    // System messages can be prepended to the first user message
+                    continue;
+                }
+                
+                $role = $message['role'] === 'assistant' ? 'model' : 'user';
+                $contents[] = [
+                    'role' => $role,
+                    'parts' => [
+                        ['text' => $message['content']]
+                    ]
+                ];
+            }
+
+            // Add system prompt to the first user message if exists
+            $systemPrompt = '';
+            foreach ($conversation as $message) {
+                if ($message['role'] === 'system') {
+                    $systemPrompt = $message['content'] . "\n\n";
+                    break;
+                }
+            }
+
+            // Prepend system prompt to first user message
+            if (!empty($systemPrompt) && !empty($contents)) {
+                for ($i = 0; $i < count($contents); $i++) {
+                    if ($contents[$i]['role'] === 'user') {
+                        $contents[$i]['parts'][0]['text'] = $systemPrompt . $contents[$i]['parts'][0]['text'];
+                        break;
+                    }
+                }
+            }
+
+            $response = Http::timeout($this->timeout)
+                ->post("{$this->baseUrl}/models/{$this->model}:generateContent?key={$this->apiKey}", [
+                    'contents' => $contents,
+                    'generationConfig' => [
+                        'temperature' => 0.7,
+                        'topK' => 40,
+                        'topP' => 0.95,
+                        'maxOutputTokens' => 1024,
+                    ],
+                    'safetySettings' => [
+                        [
+                            'category' => 'HARM_CATEGORY_HARASSMENT',
+                            'threshold' => 'BLOCK_MEDIUM_AND_ABOVE'
+                        ],
+                        [
+                            'category' => 'HARM_CATEGORY_HATE_SPEECH',
+                            'threshold' => 'BLOCK_MEDIUM_AND_ABOVE'
+                        ],
+                        [
+                            'category' => 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+                            'threshold' => 'BLOCK_MEDIUM_AND_ABOVE'
+                        ],
+                        [
+                            'category' => 'HARM_CATEGORY_DANGEROUS_CONTENT',
+                            'threshold' => 'BLOCK_MEDIUM_AND_ABOVE'
+                        ]
+                    ]
+                ]);
+
+            if (!$response->successful()) {
+                throw new \Exception('Gemini API request failed: ' . $response->body());
+            }
+
+            $responseData = $response->json();
+            
+            if (!isset($responseData['candidates'][0]['content']['parts'][0]['text'])) {
+                throw new \Exception('Invalid response format from Gemini API');
+            }
+
+            return $responseData['candidates'][0]['content']['parts'][0]['text'];
+
+        } catch (\Exception $e) {
+            Log::error('Gemini Chat API Error: ' . $e->getMessage(), [
+                'conversation' => $conversation
+            ]);
+
+            throw $e;
+        }
+    }
 }

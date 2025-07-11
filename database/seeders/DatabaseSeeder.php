@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             CategorySeeder::class,
             LawInfoItemSeeder::class,
             LawyerSeeder::class,
+            ChatRuleSeeder::class,
         ]);
     }
 }

@@ -20,6 +20,7 @@ class LetterRequest extends Model
         'document_path',
         'request_id',
         'generated_at',
+        'device_id',
     ];
 
     protected $casts = [

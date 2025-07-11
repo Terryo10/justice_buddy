@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('chat_conversations', function (Blueprint $table) {
-            $table->id();
-            $table->timestamps();
+        Schema::table('letter_requests', function (Blueprint $table) {
+            $table->string('device_id')->nullable()->after('request_id');
+            $table->index('device_id');
         });
     }
 
@@ -22,6 +22,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('chat_conversations');
+        Schema::table('letter_requests', function (Blueprint $table) {
+            $table->dropIndex(['device_id']);
+            $table->dropColumn('device_id');
+        });
     }
 };

@@ -38,7 +38,7 @@ class LetterGenerationController extends Controller
                 $search = $request->search;
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'like', "%{$search}%")
-                      ->orWhere('description', 'like', "%{$search}%");
+                        ->orWhere('description', 'like', "%{$search}%");
                 });
             }
 
@@ -60,7 +60,6 @@ class LetterGenerationController extends Controller
                 'data' => $templates,
                 'message' => 'Templates retrieved successfully'
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -93,7 +92,6 @@ class LetterGenerationController extends Controller
                 ],
                 'message' => 'Template retrieved successfully'
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -116,6 +114,7 @@ class LetterGenerationController extends Controller
                 'client_matters' => 'required|array',
                 'client_matters.*' => 'required',
                 'generate_async' => 'boolean',
+                'device_id' => 'required|string|max:255',
             ]);
 
             if ($validator->fails()) {
@@ -146,6 +145,7 @@ class LetterGenerationController extends Controller
                 'client_phone' => $request->client_phone,
                 'client_matters' => $request->client_matters,
                 'status' => 'pending',
+                'device_id' => $request->device_id,
             ]);
 
             // Determine if we should process synchronously or asynchronously
@@ -170,7 +170,7 @@ class LetterGenerationController extends Controller
             } else {
                 // Process synchronously (for immediate results)
                 $this->geminiService->processLetterRequest($letterRequest);
-                
+
                 $letterRequest->refresh();
 
                 if ($letterRequest->status === 'completed') {
@@ -180,7 +180,7 @@ class LetterGenerationController extends Controller
                             'request_id' => $letterRequest->request_id,
                             'status' => $letterRequest->status,
                             'generated_letter' => $letterRequest->generated_letter,
-                            'document_url' => $letterRequest->document_path ? 
+                            'document_url' => $letterRequest->document_path ?
                                 Storage::url($letterRequest->document_path) : null,
                             'generated_at' => $letterRequest->generated_at,
                         ],
@@ -194,7 +194,6 @@ class LetterGenerationController extends Controller
                     ], 500);
                 }
             }
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -227,18 +226,17 @@ class LetterGenerationController extends Controller
             switch ($letterRequest->status) {
                 case 'completed':
                     $response['data']['generated_letter'] = $letterRequest->generated_letter;
-                    $response['data']['document_url'] = $letterRequest->document_path ? 
+                    $response['data']['document_url'] = $letterRequest->document_path ?
                         Storage::url($letterRequest->document_path) : null;
                     $response['data']['generated_at'] = $letterRequest->generated_at;
                     break;
-                
+
                 case 'failed':
                     $response['data']['error_message'] = $letterRequest->error_message;
                     break;
             }
 
             return response()->json($response);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -273,7 +271,6 @@ class LetterGenerationController extends Controller
                 ],
                 'message' => 'Download URL generated successfully'
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -298,10 +295,10 @@ class LetterGenerationController extends Controller
 
             $filePath = storage_path('app/public/' . $letterRequest->document_path);
             $filename = basename($letterRequest->document_path);
-            
+
             // Determine MIME type based on file extension
             $extension = pathinfo($filename, PATHINFO_EXTENSION);
-            $mimeType = match($extension) {
+            $mimeType = match ($extension) {
                 'pdf' => 'application/pdf',
                 'doc' => 'application/msword',
                 'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -312,7 +309,6 @@ class LetterGenerationController extends Controller
             return response()->download($filePath, $filename, [
                 'Content-Type' => $mimeType,
             ]);
-
         } catch (\Exception $e) {
             abort(404, 'Document not found or not ready');
         }
@@ -339,7 +335,7 @@ class LetterGenerationController extends Controller
             }
 
             $perPage = $request->get('per_page', 10);
-            
+
             $letterRequests = LetterRequest::with('letterTemplate')
                 ->where('client_email', $request->client_email)
                 ->orderBy('created_at', 'desc')
@@ -361,7 +357,60 @@ class LetterGenerationController extends Controller
                 'data' => $data,
                 'message' => 'History retrieved successfully'
             ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error retrieving history: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 
+    /**
+     * Get device's letter generation history
+     */
+    public function getHistoryByDevice(Request $request): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'device_id' => 'required|string',
+                'page' => 'integer|min:1',
+                'per_page' => 'integer|min:1|max:50',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            $perPage = $request->get('per_page', 10);
+
+            $letterRequests = LetterRequest::with('letterTemplate')
+                ->where('device_id', $request->device_id)
+                ->orderBy('created_at', 'desc')
+                ->paginate($perPage);
+
+            $data = $letterRequests->through(function ($request) {
+                return [
+                    'id' => $request->id,
+                    'request_id' => $request->request_id,
+                    'template_name' => $request->letterTemplate->name,
+                    'client_name' => $request->client_name,
+                    'status' => $request->status,
+                    'created_at' => $request->created_at,
+                    'generated_at' => $request->generated_at,
+                    'has_document' => !empty($request->document_path),
+                    'generated_letter' => $request->status === 'completed' ? $request->generated_letter : null,
+                ];
+            });
+
+            return response()->json([
+                'success' => true,
+                'data' => $data,
+                'message' => 'History retrieved successfully'
+            ]);
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
@@ -383,7 +432,6 @@ class LetterGenerationController extends Controller
                 'data' => $categories,
                 'message' => 'Categories retrieved successfully'
             ]);
-
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,

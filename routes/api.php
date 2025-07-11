@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\LawInfoItemController;
 use App\Http\Controllers\Api\LawyerController;
 use App\Http\Controllers\Api\LetterGenerationController;
+use App\Http\Controllers\Api\ChatController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -51,6 +52,13 @@ Route::prefix('letter-requests')->name('api.letter-requests.')->group(function (
     Route::get('/status/{requestId}', [LetterGenerationController::class, 'checkStatus'])->name('status');
     Route::get('/download/{requestId}', [LetterGenerationController::class, 'downloadDocument'])->name('download');
     Route::get('/history', [LetterGenerationController::class, 'getHistory']);
+    Route::get('/history/device', [LetterGenerationController::class, 'getHistoryByDevice']);
+});
+
+// Chat API routes
+Route::prefix('chat')->name('api.chat.')->group(function () {
+    Route::get('/rules', [ChatController::class, 'getRules'])->name('rules');
+    Route::post('/message', [ChatController::class, 'chat'])->name('message');
 });
 
 // API Documentation routes (for testing)
