@@ -214,11 +214,32 @@ class LetterGenerationController extends Controller
             $response = [
                 'success' => true,
                 'data' => [
+                    'id' => $letterRequest->id,
                     'request_id' => $letterRequest->request_id,
+                    'letter_template_id' => $letterRequest->letter_template_id,
                     'status' => $letterRequest->status,
                     'client_name' => $letterRequest->client_name,
+                    'client_email' => $letterRequest->client_email,
+                    'client_phone' => $letterRequest->client_phone,
+                    'client_matters' => $letterRequest->client_matters,
                     'template_name' => $letterRequest->letterTemplate->name,
                     'created_at' => $letterRequest->created_at,
+                    'updated_at' => $letterRequest->updated_at,
+                    'document_path' => $letterRequest->document_path,
+                    'letter_template' => [
+                        'id' => $letterRequest->letterTemplate->id,
+                        'name' => $letterRequest->letterTemplate->name,
+                        'slug' => $letterRequest->letterTemplate->slug,
+                        'description' => $letterRequest->letterTemplate->description,
+                        'category' => $letterRequest->letterTemplate->category,
+                        'required_fields' => $letterRequest->letterTemplate->required_fields,
+                        'optional_fields' => $letterRequest->letterTemplate->optional_fields,
+                        'template_content' => $letterRequest->letterTemplate->template_content,
+                        'ai_instructions' => $letterRequest->letterTemplate->ai_instructions,
+                        'is_active' => $letterRequest->letterTemplate->is_active,
+                        'sort_order' => $letterRequest->letterTemplate->sort_order,
+                        'created_at' => $letterRequest->letterTemplate->created_at,
+                    ],
                 ],
                 'message' => 'Status retrieved successfully'
             ];
@@ -256,7 +277,7 @@ class LetterGenerationController extends Controller
                 ->where('status', 'completed')
                 ->firstOrFail();
 
-            if (!$letterRequest->document_path || !Storage::exists('public/' . $letterRequest->document_path)) {
+            if (!$letterRequest->document_path || !Storage::disk('public')->exists($letterRequest->document_path)) {
                 return response()->json([
                     'success' => false,
                     'message' => 'Document not found'
@@ -290,7 +311,7 @@ class LetterGenerationController extends Controller
                 ->where('status', 'completed')
                 ->firstOrFail();
 
-            if (!$letterRequest->document_path || !Storage::exists('public/' . $letterRequest->document_path)) {
+            if (!$letterRequest->document_path || !Storage::disk('public')->exists($letterRequest->document_path)) {
                 abort(404, 'Document not found');
             }
 
