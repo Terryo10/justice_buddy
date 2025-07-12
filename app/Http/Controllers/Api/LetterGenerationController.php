@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class LetterGenerationController extends Controller
 {
@@ -416,6 +417,133 @@ class LetterGenerationController extends Controller
                 'success' => false,
                 'message' => 'Error retrieving history: ' . $e->getMessage()
             ], 500);
+        }
+    }
+
+    /**
+     * Update/save letter content
+     */
+    public function updateLetter(Request $request, string $requestId): JsonResponse
+    {
+        try {
+            $validator = Validator::make($request->all(), [
+                'generated_letter' => 'required|string',
+                'client_name' => 'sometimes|string|max:255',
+                'client_email' => 'sometimes|email|max:255',
+                'client_phone' => 'sometimes|string|max:255',
+                'device_id' => 'required|string|max:255',
+            ]);
+
+            if ($validator->fails()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Validation failed',
+                    'errors' => $validator->errors()
+                ], 422);
+            }
+
+            // Find the letter request
+            $letterRequest = LetterRequest::where('request_id', $requestId)
+                ->where('device_id', $request->device_id) // Ensure user owns this letter
+                ->firstOrFail();
+
+            // Only allow updates to completed letters
+            if ($letterRequest->status !== 'completed') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Can only update completed letters'
+                ], 400);
+            }
+
+            // Update the letter content and any client information
+            $updateData = [
+                'generated_letter' => $request->generated_letter,
+                'updated_at' => now(),
+            ];
+
+            if ($request->has('client_name')) {
+                $updateData['client_name'] = $request->client_name;
+            }
+
+            if ($request->has('client_email')) {
+                $updateData['client_email'] = $request->client_email;
+            }
+
+            if ($request->has('client_phone')) {
+                $updateData['client_phone'] = $request->client_phone;
+            }
+
+            $letterRequest->update($updateData);
+
+            // Optionally regenerate the document file with updated content
+            if (config('services.letter_generator.auto_regenerate_on_update', true)) {
+                try {
+                    $documentPath = $this->regenerateDocument($letterRequest);
+                    if ($documentPath) {
+                        $letterRequest->update(['document_path' => $documentPath]);
+                    }
+                } catch (\Exception $e) {
+                    // Log error but don't fail the update
+                    Log::warning('Failed to regenerate document after update: ' . $e->getMessage());
+                }
+            }
+
+            $letterRequest->refresh();
+            $letterRequest->load('letterTemplate');
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'request_id' => $letterRequest->request_id,
+                    'status' => $letterRequest->status,
+                    'client_name' => $letterRequest->client_name,
+                    'client_email' => $letterRequest->client_email,
+                    'client_phone' => $letterRequest->client_phone,
+                    'generated_letter' => $letterRequest->generated_letter,
+                    'template_name' => $letterRequest->letterTemplate->name,
+                    'document_url' => $letterRequest->document_path ? 
+                        Storage::url($letterRequest->document_path) : null,
+                    'updated_at' => $letterRequest->updated_at,
+                ],
+                'message' => 'Letter updated successfully'
+            ]);
+
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Letter not found or you do not have permission to update it'
+            ], 404);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Error updating letter: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    /**
+     * Regenerate document file with updated content
+     */
+    protected function regenerateDocument(LetterRequest $letterRequest): ?string
+    {
+        try {
+            $content = $letterRequest->generated_letter;
+            $filename = 'letters/' . $letterRequest->request_id . '_updated_' . now()->format('YmdHis') . '.txt';
+            $fullPath = storage_path('app/public/' . $filename);
+            
+            // Ensure directory exists
+            $directory = dirname($fullPath);
+            if (!file_exists($directory)) {
+                mkdir($directory, 0755, true);
+            }
+
+            file_put_contents($fullPath, $content);
+
+            return $filename;
+
+        } catch (\Exception $e) {
+            Log::error('Error regenerating document: ' . $e->getMessage());
+            return null;
         }
     }
 

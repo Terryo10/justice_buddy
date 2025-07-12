@@ -51,6 +51,7 @@ Route::prefix('letter-generation')->name('letter-generation.')->group(function (
 Route::prefix('letter-requests')->name('api.letter-requests.')->group(function () {
     Route::get('/status/{requestId}', [LetterGenerationController::class, 'checkStatus'])->name('status');
     Route::get('/download/{requestId}', [LetterGenerationController::class, 'downloadDocument'])->name('download');
+    Route::put('/update/{requestId}', [LetterGenerationController::class, 'updateLetter'])->name('update');
     Route::get('/history', [LetterGenerationController::class, 'getHistory']);
     Route::get('/history/device', [LetterGenerationController::class, 'getHistoryByDevice']);
 });
