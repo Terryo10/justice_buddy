@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\LawInfoItemController;
 use App\Http\Controllers\Api\LawyerController;
 use App\Http\Controllers\Api\LetterGenerationController;
 use App\Http\Controllers\Api\ChatController;
+use App\Http\Controllers\Api\DocumentController;
 
 Route::get('/user', function (Request $request) {
     return $request->user();
@@ -38,6 +39,15 @@ Route::prefix('lawyers')->group(function () {
     Route::get('/{slug}', [LawyerController::class, 'show']);
 });
 
+// Documents API routes
+Route::prefix('documents')->group(function () {
+    Route::get('/', [DocumentController::class, 'index']);
+    Route::get('/featured', [DocumentController::class, 'featured']);
+    Route::get('/popular', [DocumentController::class, 'popular']);
+    Route::get('/categories', [DocumentController::class, 'categories']);
+    Route::get('/{slug}', [DocumentController::class, 'show']);
+    Route::get('/{slug}/download', [DocumentController::class, 'download']);
+});
 
 // Letter Generation API routes
 Route::prefix('letter-generation')->name('letter-generation.')->group(function () {
@@ -72,6 +82,7 @@ Route::get('/health', function () {
             'categories' => '/api/categories',
             'law-info-items' => '/api/law-info-items',
             'lawyers' => '/api/lawyers',
+            'documents' => '/api/documents',
         ]
     ]);
 });
