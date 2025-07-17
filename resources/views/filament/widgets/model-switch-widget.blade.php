@@ -56,9 +56,11 @@
                             @if($activeModel !== $modelKey)
                                 <button 
                                     wire:click="switchModel('{{ $modelKey }}')"
-                                    class="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-white 
-                                        {{ $modelKey === 'chatgpt' ? 'bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-800' : 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800' }} 
-                                        focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-800">
+                                    class="inline-flex items-center px-3 py-1.5 border border-gray-300 dark:border-gray-500 text-xs font-medium rounded-md 
+                                    text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500 
+                                    focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 dark:focus:ring-offset-gray-800
+                                    transition-colors duration-200
+                                        ">
                                     Switch to {{ $modelKey === 'chatgpt' ? 'ChatGPT' : 'Gemini' }}
                                 </button>
                             @endif
