@@ -29,7 +29,6 @@ class Document extends Model
     ];
 
     protected $casts = [
-        'tags' => 'array',
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
         'download_count' => 'integer',
@@ -106,6 +105,57 @@ class Document extends Model
         } else {
             return $bytes . ' bytes';
         }
+    }
+
+    public function getTagsAttribute($value)
+    {
+        if (is_null($value)) {
+            return [];
+        }
+        
+        // If it's already an array, return it
+        if (is_array($value)) {
+            return $value;
+        }
+        
+        // If it's a JSON string, decode it
+        if (is_string($value) && $this->isJson($value)) {
+            return json_decode($value, true) ?: [];
+        }
+        
+        // If it's a comma-separated string, split it
+        if (is_string($value)) {
+            return array_filter(array_map('trim', explode(',', $value)));
+        }
+        
+        return [];
+    }
+
+    public function setTagsAttribute($value)
+    {
+        if (is_null($value)) {
+            $this->attributes['tags'] = null;
+            return;
+        }
+        
+        // If it's already an array, store as JSON
+        if (is_array($value)) {
+            $this->attributes['tags'] = json_encode($value);
+            return;
+        }
+        
+        // If it's a string, store as is (will be handled by accessor)
+        $this->attributes['tags'] = $value;
+    }
+
+    private function isJson($string)
+    {
+        if (!is_string($string)) {
+            return false;
+        }
+        
+        json_decode($string);
+        return json_last_error() === JSON_ERROR_NONE;
     }
 
     public function getFileUrlAttribute()
